@@ -22,9 +22,9 @@ st.image(image, width= 800, use_column_width= 'always')
 st.subheader("Staring : Audrey, Aimé, and Florent !")
 show_pages(
     [
-        Page("Main.py", "Introduction", "🏠"),
-        Page("pages/KPImacro.py", "KPI macro", ":bar_chart:"),
-        Page("pages/Application.py", "Application", ":tv:"),
-        Page("pages/Details.py", "Details", ":books:"),
+        Page("./streamlitMain.py", "Introduction", "🏠"),
+        Page(chemin + "/KPImacro.py", "KPI macro", ":bar_chart:"),
+        Page(chemin + "/Application.py", "Application", ":tv:"),
+        Page(chemin + "/Details.py", "Details", ":books:"),
     ]
 )
