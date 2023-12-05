@@ -9,7 +9,7 @@ from PIL import Image
 
 hide_pages("Details")
 
-chemin = 'pages'
+chemin = './streamlit/pages'
 
 @st.cache_data(ttl=24*60*60)
 def readcsv():

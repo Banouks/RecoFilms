@@ -6,7 +6,7 @@ from PIL import Image
 
 hide_pages("Details")
 
-chemin = 'pages'
+chemin = './streamlit/pages'
 
 def image_intro():
     # Affichage de l'image de présentation
@@ -23,12 +23,8 @@ st.subheader("Staring : Audrey, Aimé, and Florent !")
 show_pages(
     [
         Page("Main.py", "Introduction", "🏠"),
-        Page("pages/Chiffres.py", "Chiffres", ":1234:"),
-        Page("pages/KPImicro.py", "KPI micro", ":desktop_computer:"),
         Page("pages/KPImacro.py", "KPI macro", ":bar_chart:"),
-        Page("pages/Recommandations.py", "Recommandations", ":dart:"),
         Page("pages/Application.py", "Application", ":tv:"),
         Page("pages/Details.py", "Details", ":books:"),
-        Page("pages/Questions.py", "Questions", ":interrobang:")
     ]
 )

@@ -22,7 +22,7 @@ recherche = ''
 touslesfilms = []
 multiple_films = []
 path_image = 'https://image.tmdb.org/t/p/w500'
-chemin = 'pages'
+chemin = './streamlit/pages'
 
 st.session_state.chemin = chemin
 st.session_state.path_image = path_image
