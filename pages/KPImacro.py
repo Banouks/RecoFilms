@@ -13,7 +13,7 @@ chemin = './pages'
 
 @st.cache_data(ttl=24*60*60)
 def readcsv():
-    df_full = pd.read_csv(chemin + '/df_full_kpi.csv', sep = ',')
+    df_full = pd.read_csv(chemin + '/df_full_kpi.csv.zip', sep = ',', compression= 'zip')
     return df_full
 
 df_full = readcsv()
