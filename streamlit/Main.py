@@ -6,7 +6,7 @@ from PIL import Image
 
 hide_pages("Details")
 
-chemin = './pages'
+chemin = 'pages'
 
 def image_intro():
     # Affichage de l'image de présentation
