@@ -9,3 +9,4 @@ st_clickable_images
 st_pages
 streamlit
 streamlit_extras
+import zipfile
