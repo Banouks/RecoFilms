@@ -11,7 +11,7 @@ hide_pages("Details")
 
 chemin = './pages'
 
-@st.cache_data(ttl=24*60*60)
+@st.cache_resource(max_entries= 1)
 def readcsv():
     df_full = pd.read_csv(chemin + '/df_full_kpi.csv.zip', sep = ',', compression= 'zip')
     return df_full
@@ -26,7 +26,7 @@ def image_intro():
 df_full['startYear']=pd.to_datetime(df_full['startYear'])
 df_full['release_date']=pd.to_datetime(df_full['release_date'])
 
-@st.cache_data(ttl=24*60*60)
+@st.cache_data
 def graph_1() :
     top_film_post_2000 = df_full[['primaryTitle', 'startYear', 'firstGenre', 'revenue', 'budget']]\
                     .loc[(df_full['startYear'].dt.year > 1999) \
@@ -47,7 +47,7 @@ def graph_1() :
     fig.update_layout(autosize=False, width=800, height=400)
     st.plotly_chart(fig)
 
-@st.cache_data(ttl=24*60*60)
+@st.cache_data
 def graph_2() :
     revenu_post_2000 = df_full[['primaryTitle', 'startYear', 'firstGenre', 'revenue', 'budget']]\
                    .loc[(df_full['startYear'].dt.year > 1999) \
@@ -76,7 +76,7 @@ def graph_2() :
 
     st.plotly_chart(fig)
 
-@st.cache_data(ttl=24*60*60)
+@st.cache_data
 def graph_3() :
     note_par_genre_1980 = df_full[['primaryTitle','averageRating', 'firstGenre']]\
                     .loc[(df_full['startYear'].dt.year > 1980) \
@@ -96,7 +96,7 @@ def graph_3() :
 
     st.plotly_chart(fig)
 
-@st.cache_data(ttl=24*60*60)
+@st.cache_data
 def graph_4() :
     note_par_annee_2000 = df_full[['startYear', 'primaryTitle','averageRating', 'firstGenre', 'numVotes']]\
                     .loc[(df_full['startYear'].dt.year > 1980) \
@@ -117,7 +117,7 @@ def graph_4() :
 
     st.plotly_chart(fig)
 
-@st.cache_data(ttl=24*60*60)
+@st.cache_data
 def graph_5() :
     evolution_act = df_full[['startYear', 'primaryName','category']]\
                     .loc[(df_full['startYear'].dt.year > 2012) \

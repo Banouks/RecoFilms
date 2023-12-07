@@ -67,6 +67,12 @@ if test.status_code == 200 :
     code_youtube = test['results'][0]['key']
     st.video('https://youtu.be/' + code_youtube)
 
-back = st.button('Back to list')
+col1, col2 = st.columns([1, 5])
+
+with col1 :
+    back = st.button('Back to list')
+with col2 : 
+    st.subheader(":point_left:")
+
 if back :
     switch_page("application")

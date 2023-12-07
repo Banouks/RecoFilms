@@ -15,6 +15,8 @@ import urllib.request
 from st_clickable_images import clickable_images
 from streamlit_extras.switch_page_button import switch_page
 from st_pages import hide_pages
+import zipfile
+
 
 hide_pages("Details")
 
@@ -28,10 +30,16 @@ st.session_state.chemin = chemin
 st.session_state.path_image = path_image
 
 # Importation des dataframes
-@st.cache_data(ttl=24*60*60)
+@st.cache_resource
 def readcsv():
-    df1 = pd.read_csv(chemin + '/df_films.csv', sep = ',')
-    df2 = pd.read_csv(chemin + '/df_tmdb.csv', sep = ',')
+    zf1 = zipfile.ZipFile(chemin + '/df_films.csv.zip') 
+    zf2 = zipfile.ZipFile(chemin + '/df_tmdb.csv.zip') 
+    df1 = pd.read_csv(zf1.open('df_films.csv'), sep = ',')
+    df2 = pd.read_csv(zf2.open('df_tmdb.csv'), sep = ',')
+    df1 = df1.sort_values(by= 'popularity', ascending= False)
+    # Je remplit les valeurs null
+    df1.fillna('None', inplace= True)
+    df2.fillna('None', inplace= True)
     return df1, df2
 
 if 'df_films' not in st.session_state :
@@ -41,76 +49,19 @@ if 'df_films' not in st.session_state :
 
 df_films = st.session_state.df_films
 df_tmdb = st.session_state.df_tmdb 
-#df_films, df_tmdb = readcsv()
-    
-# Je remplit les valeurs null
-df_films.fillna('None', inplace= True)
 
-# Factorization des colonnes str
-@st.cache_data(ttl=24*60*60)
-def factorisation(un_df) :
-
-    # Factorization des colonnes str
-    un_df['original_language'] = un_df['original_language'].factorize()[0]
-    un_df['firstGenre'] = un_df['firstGenre'].factorize()[0]
-    un_df['secondGenre'] = un_df['secondGenre'].factorize()[0]
-
-    # Normalisation des données avec une échelle permettant de valorisé des colonnes prioritaires
-    mon_Scaler = MinMaxScaler(feature_range= (0, 30))
-    un_df[['startYear2', 'averageRating2', 'numVotes2', 'popularity2']] = mon_Scaler.fit_transform(un_df[['startYear', 'averageRating', 'numVotes', 'popularity']])                                                                              
-    st.session_state.df_films = df_films
-
-factorisation(df_films)
-
-# remplace les e, a, o
-def remplacer(phrase):
-    accentse = ['é', 'è', 'ê', 'ë']
-    accentsa = ['à', 'ä', 'â']
-    accentso = ['Ô', 'ö']
-    for i in accentse:
-        phrase = phrase.replace(i, 'e')
-    for i in accentsa:
-        phrase = phrase.replace(i, 'a')
-    for i in accentso:
-        phrase = phrase.replace(i, 'o')
-    return phrase
-
-# Recherche films multi-critères
-def recherche_film(des_mots, un_df) :
-
-        interdit = '?!/:.;=+)([{"&@-_`*"`*^¨§<>}])'
-        for i in interdit :
-            if i in des_mots :
-                des_mots = des_mots.replace(i,'')
-
-        des_mots =  remplacer(des_mots) #remplacement des lettres accentuées
-        recherche = des_mots.lower().split() #Je place les mots recherchés dans une liste
-        liste_films = df_films['originalTitle_Year'].to_list() #Liste de tous les films du df
-        
-        #Je parcours la liste. Pour chaque mot je recherche dans la liste. Elle se réduit au fur est à mesure
-        for mot in recherche : 
-            liste_films = [film for film \
-                        in liste_films \
-                        if mot \
-                        in remplacer(film)\
-                        .lower()]
-
-        #df vide pour intégrer les films trouvés dans la recherche
-        df = pd.DataFrame(columns= ['tconst', 'originalTitle_Year', 'popularity'])
-
-        #accrémentation du df avec tous les films trouvés
-        for film in liste_films :
-            df = pd.concat([df,un_df.loc[un_df['originalTitle_Year'] == film][['tconst', 'originalTitle_Year', 'popularity']]])
-       
-        # Je retourne les tconst du film le plus populaire qui contient tous les mots
-        return list(df.sort_values(by= 'popularity', ascending= False)['tconst'])
-
-# Fonction pour ajouter à une checkbox les films trouvés
-def multiple_choix(liste_films, df) :
+# je fais la liste des films du df_films pour la placer dans la liste déroulante
+@st.cache_resource
+def liste_films(un_df) :
     liste = []
-    for film in liste_films :
-        liste.append(df[df['tconst'] == film]['originalTitle_Year'].item())
-    return liste
+    liste = un_df['originalTitle_Year'].to_list()
+    st.session_state.liste_films = liste
+
+# je récupère le tconst du film à partir du titre du film qui sera sélectionné dans la liste déroulante
+def recherche_tconst_film(titre_film) :
+    st.session_state.titre_film = titre_film
+    choix = df_films[df_films['originalTitle_Year'] == titre_film]['tconst'].values
+    return choix
 
 # Fonction qui permettra de récupérer automatiquement les paramètres pour le ML
 def parametre_film(un_index, un_df):
@@ -147,8 +98,7 @@ def load_image_from_github(url):
     image = Image.open(response)
   return image
 
-@st.cache_data(ttl=24*60*60)
-#@st.cache_resource
+@st.cache_resource
 def mlKNN():
     # On va récupérer les plus proches voisins du film recherché
     X = df_films[['original_language', 'startYear2', 'firstGenre', 'secondGenre', \
@@ -206,16 +156,14 @@ def click_image(un_tconst):
     st.session_state.mon_tconst = un_tconst
     switch_page("Details")
 
-def submit_text():
-    st.session_state.recherche = st.session_state.text
-
+# action lors du clic sur la liste déroulante et donc choix d'un titre de film
 def submit_select():
-    st.session_state.choix_film = st.session_state.select
+    st.session_state.titre_film = st.session_state.select
+    st.session_state.index_film = df_films[df_films['originalTitle_Year'] == st.session_state.titre_film].index.values
 
 filmKNN = mlKNN()
 
-@st.cache_data(ttl=24*60*60)
-#@st.cache(ttl=24*60*60)
+@st.cache_data(ttl=60*10)
 def image_intro():
     # Affichage de l'image de présentation
     mon_image = Image.open(chemin + '/Chanmel 2.jpg')
@@ -226,55 +174,55 @@ st.image(image, width= 800, use_column_width= 'always')
 
 st.write('Welcome back to your Chanmel account you tv shows addict')
 
-if 'recherche' not in st.session_state :
-    recherche = st.text_input('Rechercher un film 👇 :', placeholder= 'Ecrivez ici', key= 'text', on_change=submit_text) # Saisie d'un film par l'utilisateur
-else : 
-    recherche = st.text_input('Rechercher un film 👇 :', placeholder= 'Ecrivez ici', value= st.session_state.recherche, \
-                               key= 'text', on_change=submit_text) # Saisie d'un film par l'utilisateur
+#if 'liste_films' not in st.session_state :
+#     liste_films(df_films)
 
-if recherche : 
-
-    touslesfilms = recherche_film(recherche, df_films) # Recherche de tous les films comprenant la saisie (tconst)
-    #st.write(touslesfilms) 
-    if len(touslesfilms) > 0 :
-
-        multiple_films = multiple_choix(touslesfilms, df_films) # Recherche de tous les films comprenant la saisie (originalTitle)
-        #st.write(multiple_films)  
-        # Accrémentation de la chekbox avec les films trouvé    
-        if 'choix_film' not in st.session_state :
-            choix_film = st.selectbox('Voici les films qui correspondent à votre recherche :', multiple_films, key= 'select', \
-                                       on_change= submit_select)
-            #st.session_state.choix_film = choix_film
-        else :
-            choix_film = st.session_state.choix_film
-            #st.write('choix_film ' + choix_film)
-            if choix_film in multiple_films :
-                choix_film = st.selectbox('Voici les films qui correspondent à votre recherche :', multiple_films, index= multiple_films.index(choix_film), \
-                                           key= 'select', on_change= submit_select)
-                #st.write('choix_film ' + choix_film)
-            else :
-                choix_film = st.selectbox('Voici les films qui correspondent à votre recherche :', multiple_films, key= 'select', on_change= submit_select)
-            #st.write('choix_film ' + choix_film)
-            #st.session_state.choix_film = choix_film
+# Accrémentation de la selectbox avec les films trouvé    
+if 'titre_film' not in st.session_state :
+    titre_film = st.selectbox('Sélectionnez un film dans la liste :', df_films['originalTitle_Year'], index= None,  key= 'select', \
+                                on_change= submit_select)
+    #st.session_state.titre_film = titre_film
     
-        if choix_film :
-            #st.session_state.choix_film = choix_film
-            st.divider()
+    st.session_state.titre_film + '  1'
+else : 
+    
+    st.session_state.titre_film + '  2'
+    st.session_state.index_film
+    index = st.session_state.index_film
+    index
+    df_films['originalTitle_Year'][index]
+    titre_film = st.session_state.titre_film
+    st.selectbox('Sélectionnez un film dans la liste :', df_films['originalTitle_Year'], index= int(st.session_state.index_film), \
+                               key= 'select', on_change= submit_select)
+    titre_film = st.session_state.titre_film                         
+    titre_film + '     4'
+    #st.session_state.titre_film = titre_film        
+    st.session_state.titre_film + '  3'                   
+#else :
+#    titre_film = st.session_state.titre_film
+#    titre_film = st.selectbox('Sélectionnez un film dans la liste :', liste_films(df_films), index= titre_film, \
+#                                           key= 'select', on_change= submit_select)
+ 
+    if titre_film :
+        st.divider()
 
-            tconst_film = recherche_film(choix_film, df_films)
-
-            # Je fais ma recherche de voisin et j'affiche les résultats (retourne les index)
-            ideeFilm = filmKNN.kneighbors(parametre_film(tconst_film, df_films))
-
-            # Récupération des tconst vaec les index des films
-            montconst = []
-            for item in ideeFilm[1][0][:] :
-                montconst.append(df_films.iloc[item]['tconst'])
+        tconst_film = recherche_tconst_film(titre_film)
+        st.session_state.tconst_film = tconst_film
+        #st.session_state.tconst_film = recherche_tconst_film(titre_film)
+        #st.session_state.tconst_film
+        #tconst_film
+        # Je fais ma recherche de voisin et j'affiche les résultats (retourne les index)
+        ideeFilm = filmKNN.kneighbors(parametre_film(st.session_state.tconst_film, df_films))
+        #ideeFilm
+        # Récupération des tconst vaec les index des films
+        montconst = []
+        for item in ideeFilm[1][0][:] :
+            montconst.append(df_films.iloc[item]['tconst'])
         
-            liste_casting = recherche_casting(montconst[0], df_films)
+        liste_casting = recherche_casting(montconst[0], df_films)
 
-            col1, col2, col3 = st.columns([3, 2, 3])
-            with col1 :
+        col1, col2, col3 = st.columns([3, 2, 3])
+        with col1 :
                 # Affichage du film sélectionné
                 st.subheader('Film sélectionné :')
                 if df_films[df_films['tconst'] == montconst[0]]['poster_path'].item() != 'None' : 
@@ -283,58 +231,58 @@ if recherche :
                     image_film = Image.open(chemin + '/image-non-disponible.png')
                 st.image(image_film, width= 200)
                 st.write(df_films[df_films['tconst'] == montconst[0]]['originalTitle'].item())
-            with col2 :
+        with col2 :
                 st.subheader("Note : " + str(df_films[df_films['tconst'] == montconst[0]]['averageRating'].item()))
                 st.subheader('Casting :')
                 max_cast = 0
                 for cast in liste_casting :
                     st.write(cast)
-            with col3 :
+        with col3 :
                 st.subheader('Synopsis :')
                 st.write(str(df_tmdb[df_tmdb['tconst'] == montconst[0]]['overview'].item()))
 
-            st.divider()
+        st.divider()
     
             # Je crée des colonnes pour afficher les images des films voisins
-            st.header('Voici nos recommandations')
+        st.header('Voici nos recommandations')
 
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
-            with col1 :
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        with col1 :
                 affiche_film_film(montconst, 1)
-            with col2 :
+        with col2 :
                 affiche_film_film(montconst, 2)
-            with col3 :
+        with col3 :
                 affiche_film_film(montconst, 3)
-            with col4 :
+        with col4 :
                 affiche_film_film(montconst, 4)
-            with col5 :
+        with col5 :
                 affiche_film_film(montconst, 5)
-            with col6 :
+        with col6 :
                 affiche_film_film(montconst, 6)
 
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
-            with col1 :
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        with col1 :
                 affiche_film_film(montconst, 7)
-            with col2 :
+        with col2 :
                 affiche_film_film(montconst, 8)
-            with col3 :
+        with col3 :
                 affiche_film_film(montconst, 9)
-            with col4 :
+        with col4 :
                 affiche_film_film(montconst, 10)
-            with col5 :
+        with col5 :
                 affiche_film_film(montconst, 11)
-            with col6 :
+        with col6 :
                 affiche_film_film(montconst, 12)
         
-            st.divider()
+        st.divider()
 
-            liste_film_par_casting = []
-            liste_film_par_casting = rech_film_par_cast(liste_casting, 1, df_films)
+        liste_film_par_casting = []
+        liste_film_par_casting = rech_film_par_cast(liste_casting, 1, df_films)
 
-            st.header('Films avec ' + liste_casting[1])
+        st.header('Films avec ' + liste_casting[1])
         
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
-            with col1 :
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        with col1 :
                 if len(liste_film_par_casting) > 0 :
                     affiche_film_casting(liste_film_par_casting, 0, liste_casting[0])
                     if len(liste_film_par_casting) > 1 :
@@ -353,15 +301,15 @@ if recherche :
                                                         with col6 :
                                                             affiche_film_casting(liste_film_par_casting, 5, liste_casting[0])
 
-            st.divider()
+        st.divider()
 
-            liste_film_par_casting = []
-            liste_film_par_casting = rech_film_par_cast(liste_casting, 2, df_films)
+        liste_film_par_casting = []
+        liste_film_par_casting = rech_film_par_cast(liste_casting, 2, df_films)
 
-            st.header('Films avec ' + liste_casting[2])
+        st.header('Films avec ' + liste_casting[2])
         
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
-            with col1 :
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        with col1 :
                 if len(liste_film_par_casting) > 0 :
                     affiche_film_casting(liste_film_par_casting, 0, liste_casting[1])
                     if len(liste_film_par_casting) > 1 :
@@ -380,15 +328,15 @@ if recherche :
                                                         with col6 :
                                                             affiche_film_casting(liste_film_par_casting, 5, liste_casting[1])
          
-            st.divider()
+        st.divider()
         
-            liste_film_par_casting = []
-            liste_film_par_casting = rech_film_par_cast(liste_casting, 3, df_films)
+        liste_film_par_casting = []
+        liste_film_par_casting = rech_film_par_cast(liste_casting, 3, df_films)
 
-            st.header('Films avec ' + liste_casting[3])
+        st.header('Films avec ' + liste_casting[3])
 
-            col1, col2, col3, col4, col5, col6 = st.columns(6)
-            with col1 :
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        with col1 :
                 if len(liste_film_par_casting) > 0 :
                     affiche_film_casting(liste_film_par_casting, 0, liste_casting[2])
                     if len(liste_film_par_casting) > 1 :
