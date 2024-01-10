@@ -7,6 +7,6 @@ Requests
 scikit_learn
 st_clickable_images
 st_pages
-streamlit
+streamlit==1.24.1
 streamlit_extras
 zipfile
