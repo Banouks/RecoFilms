@@ -9,4 +9,4 @@ st_clickable_images
 st_pages
 streamlit==1.24.1
 streamlit_extras
-zipfile== 3.2
+zipp
