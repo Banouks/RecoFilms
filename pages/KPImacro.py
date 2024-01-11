@@ -155,7 +155,7 @@ with col1 :
     checkbox = st.checkbox("Infos :", key= 'graph_6')
 with col2 :
     if checkbox :
-        st.write("De manière générale plus les utilisateurs votent, meilleures sera la note")
+        st.write("De manière générale plus les utilisateurs votent, meilleure sera la note")
         st.write("Donc un film avec de nombreux votes est fortement recommandable")
 
 st.divider()
